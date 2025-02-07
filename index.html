@@ -30,29 +30,27 @@
             return data.access_token;
         }
 
-        async function getRandomTrack(token) {
-            const response = await fetch("https://api.spotify.com/v1/recommendations?seed_genres=pop", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+async function getRandomTrack(token) {
+    const response = await fetch("https://api.spotify.com/v1/artists/4NHQUGzhtTLFvgF5SZesLK/top-tracks?market=US", {
+        headers: { Authorization: `Bearer ${token}` }
+    });
 
-            const data = await response.json();
-            const tracksWithPreview = data.tracks.filter(track => track.preview_url); // Alleen met preview
+    if (!response.ok) {
+        console.error("Fout bij ophalen van track:", response.status, response.statusText);
+        return null;
+    }
 
-            if (tracksWithPreview.length === 0) {
-                console.error("Geen nummers met preview gevonden.");
-                return null;
-            }
+    const data = await response.json();
+    const tracksWithPreview = data.tracks.filter(track => track.preview_url); // Alleen tracks met preview
 
-            return tracksWithPreview[Math.floor(Math.random() * tracksWithPreview.length)];
-        }
+    if (tracksWithPreview.length === 0) {
+        console.error("Geen nummers met preview gevonden.");
+        return null;
+    }
 
-        function playSong(previewUrl) {
-            if (previewUrl) {
-                const audio = new Audio(previewUrl);
-                audio.play();
-            } else {
-                document.getElementById("result").innerText = "Geen preview beschikbaar.";
-            }
+    return tracksWithPreview[Math.floor(Math.random() * tracksWithPreview.length)];
+}
+
         }
 
         function loadOptions(track) {
