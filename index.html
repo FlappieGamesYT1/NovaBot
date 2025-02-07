@@ -14,77 +14,107 @@
         <div id="options"></div>
         <p id="result"></p>
     </div>
-    
+
     <script>
         const clientId = "c868457bccde408c8472a677dbfe1d0f";  // ⚠️ Zet hier je echte Client ID
         const clientSecret = "553fef3b0d324d31b1150ec2c59596c8"; // ⚠️ Zet hier je echte Client Secret
+        let currentTrack = null;
 
+        // 🔹 1. Token ophalen van Spotify API
         async function getAccessToken() {
-            const response = await fetch("https://accounts.spotify.com/api/token", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}`
-            });
+            try {
+                const response = await fetch("https://accounts.spotify.com/api/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}`
+                });
 
-            const data = await response.json();
-            return data.access_token;
+                if (!response.ok) throw new Error("Kan geen token ophalen");
+                const data = await response.json();
+                return data.access_token;
+            } catch (error) {
+                console.error("Fout bij ophalen token:", error);
+                document.getElementById("result").innerText = "Fout bij ophalen token!";
+                return null;
+            }
         }
 
-async function getRandomTrack(token) {
-    const response = await fetch("https://api.spotify.com/v1/artists/4NHQUGzhtTLFvgF5SZesLK/top-tracks?market=US", {
-        headers: { Authorization: `Bearer ${token}` }
-    });
+        // 🔹 2. Random track ophalen (Top tracks van een artiest)
+        async function getRandomTrack(token) {
+            try {
+                const artistId = "4NHQUGzhtTLFvgF5SZesLK"; // Tame Impala (voorbeeld)
+                const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=US`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
 
-    if (!response.ok) {
-        console.error("Fout bij ophalen van track:", response.status, response.statusText);
-        return null;
-    }
+                if (!response.ok) throw new Error(`API Fout: ${response.statusText}`);
+                const data = await response.json();
+                const tracksWithPreview = data.tracks.filter(track => track.preview_url); // Alleen tracks met preview
 
-    const data = await response.json();
-    const tracksWithPreview = data.tracks.filter(track => track.preview_url); // Alleen tracks met preview
+                if (tracksWithPreview.length === 0) {
+                    console.error("Geen tracks met preview gevonden.");
+                    return null;
+                }
 
-    if (tracksWithPreview.length === 0) {
-        console.error("Geen nummers met preview gevonden.");
-        return null;
-    }
-
-    return tracksWithPreview[Math.floor(Math.random() * tracksWithPreview.length)];
-}
-
+                return tracksWithPreview[Math.floor(Math.random() * tracksWithPreview.length)];
+            } catch (error) {
+                console.error("Fout bij ophalen track:", error);
+                return null;
+            }
         }
 
+        // 🔹 3. Audio afspelen
+        function playSong(previewUrl) {
+            if (previewUrl) {
+                const audio = new Audio(previewUrl);
+                audio.play();
+            } else {
+                document.getElementById("result").innerText = "Geen preview beschikbaar.";
+            }
+        }
+
+        // 🔹 4. Antwoordopties genereren
         function loadOptions(track) {
             const optionsDiv = document.getElementById("options");
             optionsDiv.innerHTML = "";
-            
+
             let options = [track.name, "Random Song 1", "Random Song 2"];
             options.sort(() => Math.random() - 0.5);
 
             options.forEach(option => {
                 const btn = document.createElement("button");
                 btn.innerText = option;
-                btn.onclick = () => checkAnswer(option, track.name);
+                btn.onclick = () => checkAnswer(option);
                 optionsDiv.appendChild(btn);
             });
         }
 
-        function checkAnswer(selected, correct) {
-            document.getElementById("result").innerText = selected === correct 
+        // 🔹 5. Antwoord controleren
+        function checkAnswer(selected) {
+            document.getElementById("result").innerText = selected === currentTrack.name 
                 ? "✅ Correct!" 
-                : `❌ Fout! Het juiste antwoord was: ${correct}`;
+                : `❌ Fout! Het juiste antwoord was: ${currentTrack.name}`;
         }
 
+        // 🔹 6. Spel starten
         async function startGame() {
-            document.getElementById("result").innerText = "Laden...";
-            const token = await getAccessToken();
-            const track = await getRandomTrack(token);
+            try {
+                document.getElementById("result").innerText = "Laden...";
+                const token = await getAccessToken();
+                if (!token) return;
 
-            if (track) {
-                document.getElementById("result").innerText = "";
-                playSong(track.preview_url);
-                loadOptions(track);
-            } else {
-                document.getElementById("result").innerText = "Geen nummers gevonden. Probeer opnieuw!";
+                const track = await getRandomTrack(token);
+                if (track) {
+                    currentTrack = track;
+                    document.getElementById("result").innerText = "";
+                    playSong(track.preview_url);
+                    loadOptions(track);
+                } else {
+                    document.getElementById("result").innerText = "Geen nummers gevonden. Probeer opnieuw!";
+                }
+            } catch (error) {
+                console.error("Fout in startGame:", error);
+                document.getElementById("result").innerText = "Er is een fout opgetreden!";
             }
         }
     </script>
